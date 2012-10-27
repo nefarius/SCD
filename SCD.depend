@@ -1,0 +1,13 @@
+# depslib dependency file v1.0
+1351346024 source:/home/benjamin/projects/SCD/main.c
+	<stdio.h>
+	<stdlib.h>
+	<libconfig.h>
+	<sqlite3.h>
+	<syslog.h>
+	<unistd.h>
+	<sys/types.h>
+	<time.h>
+	<string.h>
+	<signal.h>
+
