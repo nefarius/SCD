@@ -40,7 +40,7 @@ int main()
     int retval = 0;
     const char *config_file_name = "/etc/scd.cfg";
     const char *db_file_name;
-    long kick_time = 15;
+    int kick_time = 15;
 
     config_init(&cfg);
     setlogmask(LOG_UPTO(LOG_NOTICE));
@@ -119,11 +119,11 @@ int main()
 
     if(!config_lookup_int(&cfg, "kicktime", &kick_time))
     {
-        syslog(LOG_NOTICE, "No global inactive session kick time set, using default value of %ld minutes", kick_time);
+        syslog(LOG_NOTICE, "No global inactive session kick time set, using default value of %d minutes", kick_time);
     }
     else
     {
-        syslog(LOG_NOTICE, "Inactive session will be kicked after %ld minutes", kick_time);
+        syslog(LOG_NOTICE, "Inactive session will be kicked after %d minutes", kick_time);
     }
 
     int q_cnt = 3, q_size = 150, ind = 0;
