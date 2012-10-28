@@ -49,7 +49,7 @@ int main()
     setlogmask(LOG_UPTO(LOG_DEBUG));
 #endif
 
-    openlog("scd", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_AUTH);
+    openlog("scd", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL0);
 
     syslog(LOG_NOTICE, "Process started by user %d", getuid());
     syslog(LOG_NOTICE, "Parent PID is %d", getppid());
@@ -187,7 +187,7 @@ int main()
 
         ind = 0;
 #ifdef DEBUG
-        syslog(LOG_DEBUG, "Index reset, new run...");
+        syslog(LOG_NOTICE, "Index reset, new run...");
 #endif
     }
 
