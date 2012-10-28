@@ -43,9 +43,13 @@ int main()
     int kick_time = 15;
 
     config_init(&cfg);
+#ifndef DEBUG
     setlogmask(LOG_UPTO(LOG_NOTICE));
+#else
+    setlogmask(LOG_UPTO(LOG_DEBUG));
+#endif
 
-    openlog("scd", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
+    openlog("scd", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_AUTH);
 
     syslog(LOG_NOTICE, "Process started by user %d", getuid());
     syslog(LOG_NOTICE, "Parent PID is %d", getppid());
@@ -143,10 +147,16 @@ int main()
         queries[ind++] = sqlite3_mprintf("DELETE FROM scd_sessions WHERE `last_visit`<%ld", time(NULL) - (kick_time * 60));
         // DEBUG
         //queries[ind++] = sqlite3_mprintf("INSERT INTO scd_sessions VALUES ('192.168.1.2', 'nefarius', %ld)", time(NULL));
+#ifdef DEBUG
+        syslog(LOG_DEBUG, "Inactive session lookup [%s]", queries[ind - 1]);
+#endif
         retval = sqlite3_exec(db_con, queries[ind - 1], 0, 0, 0);
         if(retval) syslog(LOG_WARNING, "sqlite3: %s\n", sqlite3_errmsg(db_con));
         // get active session username
         queries[ind++] = sqlite3_mprintf("SELECT user FROM scd_sessions WHERE `ip`=\"%s\"", ip_address);
+#ifdef DEBUG
+        syslog(LOG_DEBUG, "Active session lookup [%s]", queries[ind - 1]);
+#endif
         retval = sqlite3_prepare_v2(db_con,queries[ind - 1], -1, &db_stmt, 0);
         if(retval) syslog(LOG_WARNING, "sqlite3: %s\n", sqlite3_errmsg(db_con));
 
@@ -155,18 +165,30 @@ int main()
         if(retval == SQLITE_ROW)
         {
             const char *username = (const char*)sqlite3_column_text(db_stmt, 0);
+#ifdef DEBUG
+            syslog(LOG_DEBUG, "Response: OK user=%s", username);
+#endif
             printf("OK user=%s\n", username);
 
             queries[ind++] = sqlite3_mprintf("UPDATE scd_sessions SET `last_visit`=%ld WHERE `ip`=\"%s\"", time(NULL), ip_address);
+#ifdef DEBUG
+            syslog(LOG_DEBUG, "Active session update [%s]", queries[ind - 1]);
+#endif
             retval = sqlite3_exec(db_con, queries[ind - 1], 0, 0, 0);
             if(retval) syslog(LOG_WARNING, "sqlite3: %s\n", sqlite3_errmsg(db_con));
         }
         else
         {
+#ifdef DEBUG
+            syslog(LOG_DEBUG, "Response: ERR");
+#endif
             printf("ERR\n");
         }
 
         ind = 0;
+#ifdef DEBUG
+        syslog(LOG_DEBUG, "Index reset, new run...");
+#endif
     }
 
     clean_shutdown(&cfg, db_con);
