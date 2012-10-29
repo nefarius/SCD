@@ -110,7 +110,9 @@ int main()
     }
 
     char *create_table = "CREATE TABLE IF NOT EXISTS scd_sessions "
-                         "(ip TEXT PRIMARY KEY, user TEXT NOT NULL, "
+                         "(sid INTEGER PRIMARY KEY, "
+                         "ip TEXT NOT NULL, "
+                         "user TEXT NOT NULL, "
                          "last_visit INTEGER NOT NULL)";
 
     retval = sqlite3_exec(db_con, create_table, 0, 0, 0);
@@ -146,7 +148,8 @@ int main()
         // remove all inactive sessions from database
         queries[ind++] = sqlite3_mprintf("DELETE FROM scd_sessions WHERE `last_visit`<%ld", time(NULL) - (kick_time * 60));
         // DEBUG
-        //queries[ind++] = sqlite3_mprintf("INSERT INTO scd_sessions VALUES ('192.168.1.2', 'nefarius', %ld)", time(NULL));
+        //queries[ind++] = sqlite3_mprintf("INSERT INTO scd_sessions (ip, user, last_visit) "
+        //                                 "VALUES ('192.168.0.100', 'nefarius', %ld)", time(NULL));
 #ifdef DEBUG
         syslog(LOG_DEBUG, "Inactive session lookup [%s]", queries[ind - 1]);
 #endif
@@ -169,6 +172,7 @@ int main()
             syslog(LOG_DEBUG, "Response: OK user=%s", username);
 #endif
             printf("OK user=%s\n", username);
+            fflush(stdout);
 
             queries[ind++] = sqlite3_mprintf("UPDATE scd_sessions SET `last_visit`=%ld WHERE `ip`=\"%s\"", time(NULL), ip_address);
 #ifdef DEBUG
@@ -183,6 +187,7 @@ int main()
             syslog(LOG_DEBUG, "Response: ERR");
 #endif
             printf("ERR\n");
+            fflush(stdout);
         }
 
         ind = 0;
@@ -191,6 +196,7 @@ int main()
 #endif
     }
 
+    syslog(LOG_NOTICE, "Program end reached, terminating...");
     clean_shutdown(&cfg, db_con);
     return 0;
 }

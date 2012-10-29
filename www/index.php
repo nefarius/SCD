@@ -27,7 +27,7 @@ ini_set("display_errors", "yes");
 if(isset($_POST['username']) && isset($_POST['password']))
 {
 	// Create (connect to) SQLite database in file
-	$file_db = new PDO('sqlite:/var/lib/scd/scd.db');
+	$file_db = new PDO('sqlite:/var/lib/scd/scd.sqlite3');
 	//$file_db = new PDO('sqlite:/var/www/scd/scd.db');
 
 	// Set errormode to exceptions
@@ -35,13 +35,15 @@ if(isset($_POST['username']) && isset($_POST['password']))
 							 PDO::ERRMODE_EXCEPTION);
 							 
 	$db_create = "CREATE TABLE IF NOT EXISTS scd_sessions " .
-					"(ip TEXT PRIMARY KEY, user TEXT NOT NULL, " .
-					"last_visit INTEGER NOT NULL)";
+			"(sid INTEGER PRIMARY KEY, " .
+			"ip TEXT NOT NULL, user TEXT NOT NULL, " .
+			"last_visit INTEGER NOT NULL)";
 					
 	$file_db->exec($db_create);
 	
 	$db_insert = "INSERT INTO scd_sessions " .
-				"VALUES (:ip, :user, :last_visit)";
+			"(ip, user, last_visit) " .
+			"VALUES (:ip, :user, :last_visit)";
 				
 	$stmt = $file_db->prepare($db_insert);
 	
