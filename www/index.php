@@ -24,6 +24,11 @@
  
 ini_set("display_errors", "yes");
 
+session_start();
+
+if (!isset($_SESSION["origURL"]) && isset($_GET["referer"]))
+	$_SESSION["origURL"] = $_GET["referer"];
+
 if(isset($_POST['username']) && isset($_POST['password']))
 {
 	// Create (connect to) SQLite database in file
@@ -57,6 +62,9 @@ if(isset($_POST['username']) && isset($_POST['password']))
     $timestamp = time();
     
     $stmt->execute();
+	
+	header("Location: ".$_SESSION["origURL"]);
+	die();
 }
 
 ?>

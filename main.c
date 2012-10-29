@@ -34,6 +34,28 @@ void sig_handler(int signo)
     }
 }
 
+int busy_handler(void *pArg1, int iPriorCalls)
+{
+    syslog(LOG_DEBUG, "busy_handler() %d", iPriorCalls);
+
+    /*
+    // sleep if handler has been called less than threshold value
+    if (iPriorCalls < 20)
+    {
+        // adding a random value here greatly reduces locking
+        if (pArg1 < 0)
+            usleep((rand() % 500000) + 400000);
+        else usleep(500000);
+        return 1;
+    }
+    */
+    clean_shutdown();
+    exit(0);
+
+    // have sqlite3_exec immediately return SQLITE_BUSY
+    return 0;
+}
+
 int main()
 {
     sqlite3_stmt *db_stmt;
@@ -101,6 +123,7 @@ int main()
     }
 
     retval = sqlite3_open(db_file_name, &db_con);
+    sqlite3_busy_handler(db_con, busy_handler, NULL);
 
     if(retval)
     {
@@ -154,14 +177,14 @@ int main()
         syslog(LOG_DEBUG, "Inactive session lookup [%s]", queries[ind - 1]);
 #endif
         retval = sqlite3_exec(db_con, queries[ind - 1], 0, 0, 0);
-        if(retval) syslog(LOG_WARNING, "sqlite3: [%d] %s\n", retval, sqlite3_errmsg(db_con));
+        if(retval) syslog(LOG_WARNING, "sqlite3: [%d] %s", retval, sqlite3_errmsg(db_con));
         // get active session username
         queries[ind++] = sqlite3_mprintf("SELECT user FROM scd_sessions WHERE `ip`=\"%s\"", ip_address);
 #ifdef DEBUG
         syslog(LOG_DEBUG, "Active session lookup [%s]", queries[ind - 1]);
 #endif
         retval = sqlite3_prepare_v2(db_con,queries[ind - 1], -1, &db_stmt, 0);
-        if(retval) syslog(LOG_WARNING, "sqlite3: %s\n", sqlite3_errmsg(db_con));
+        if(retval) syslog(LOG_WARNING, "sqlite3: %s", sqlite3_errmsg(db_con));
 
         retval = sqlite3_step(db_stmt);
 
@@ -180,6 +203,8 @@ int main()
 #endif
             retval = sqlite3_exec(db_con, queries[ind - 1], 0, 0, 0);
             if(retval) syslog(LOG_WARNING, "sqlite3: %s\n", sqlite3_errmsg(db_con));
+
+            free((char*)username);
         }
         else
         {
