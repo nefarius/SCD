@@ -151,7 +151,7 @@ int main()
         syslog(LOG_DEBUG, "Inactive session lookup [%s]", queries[ind - 1]);
 #endif
         retval = sqlite3_exec(db_con, queries[ind - 1], 0, 0, 0);
-        if(retval) syslog(LOG_WARNING, "sqlite3: %s\n", sqlite3_errmsg(db_con));
+        if(retval) syslog(LOG_WARNING, "sqlite3: [%d] %s\n", retval, sqlite3_errmsg(db_con));
         // get active session username
         queries[ind++] = sqlite3_mprintf("SELECT user FROM scd_sessions WHERE `ip`=\"%s\"", ip_address);
 #ifdef DEBUG
