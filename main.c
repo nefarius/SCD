@@ -8,6 +8,10 @@
 #include <time.h>
 #include <string.h>
 #include <signal.h>
+#include <regex.h>
+
+#define IPEXPR "([0-9]{1,3})\\.([0-9]{1,3})\\.([0-9]{1,3})\\.([0-9]{1,3})"
+#define IPFAIL 5
 
 
 config_t cfg;
@@ -159,6 +163,10 @@ int main()
     char **queries = malloc(sizeof(char) * q_cnt * q_size);
 
     char ip_address[15], *nl;
+    regex_t re;
+    int faild = 0;
+
+    regcomp(&re, IPEXPR, REG_EXTENDED);
 
     for(;;)
     {
@@ -168,51 +176,65 @@ int main()
         nl = strrchr(ip_address, '\n');
         if(nl) *nl = '\0';
 
-        // remove all inactive sessions from database
-        queries[ind++] = sqlite3_mprintf("DELETE FROM scd_sessions WHERE `last_visit`<%ld", time(NULL) - (kick_time * 60));
-        // DEBUG
-        //queries[ind++] = sqlite3_mprintf("INSERT INTO scd_sessions (ip, user, last_visit) "
-        //                                 "VALUES ('192.168.0.100', 'nefarius', %ld)", time(NULL));
-#ifdef DEBUG
-        syslog(LOG_DEBUG, "Inactive session lookup [%s]", queries[ind - 1]);
-#endif
-        retval = sqlite3_exec(db_con, queries[ind - 1], 0, 0, 0);
-        if(retval) syslog(LOG_WARNING, "sqlite3: [%d] %s", retval, sqlite3_errmsg(db_con));
-        // get active session username
-        queries[ind++] = sqlite3_mprintf("SELECT user FROM scd_sessions WHERE `ip`=\"%s\"", ip_address);
-#ifdef DEBUG
-        syslog(LOG_DEBUG, "Active session lookup [%s]", queries[ind - 1]);
-#endif
-        retval = sqlite3_prepare_v2(db_con,queries[ind - 1], -1, &db_stmt, 0);
-        if(retval) syslog(LOG_WARNING, "sqlite3: %s", sqlite3_errmsg(db_con));
-
-        retval = sqlite3_step(db_stmt);
-
-        if(retval == SQLITE_ROW)
+        if((retval = regexec(&re, ip_address, 0, NULL, 0)) == 0)
         {
-            const char *username = (const char*)sqlite3_column_text(db_stmt, 0);
+            // remove all inactive sessions from database
+            queries[ind++] = sqlite3_mprintf("DELETE FROM scd_sessions WHERE `last_visit`<%ld", time(NULL) - (kick_time * 60));
+            // DEBUG
+            //queries[ind++] = sqlite3_mprintf("INSERT INTO scd_sessions (ip, user, last_visit) "
+            //                                 "VALUES ('192.168.0.100', 'nefarius', %ld)", time(NULL));
 #ifdef DEBUG
-            syslog(LOG_DEBUG, "Response: OK user=%s", username);
-#endif
-            printf("OK user=%s\n", username);
-            fflush(stdout);
-
-            queries[ind++] = sqlite3_mprintf("UPDATE scd_sessions SET `last_visit`=%ld WHERE `ip`=\"%s\"", time(NULL), ip_address);
-#ifdef DEBUG
-            syslog(LOG_DEBUG, "Active session update [%s]", queries[ind - 1]);
+            syslog(LOG_DEBUG, "Inactive session lookup [%s]", queries[ind - 1]);
 #endif
             retval = sqlite3_exec(db_con, queries[ind - 1], 0, 0, 0);
-            if(retval) syslog(LOG_WARNING, "sqlite3: %s\n", sqlite3_errmsg(db_con));
+            if(retval) syslog(LOG_WARNING, "sqlite3: [%d] %s", retval, sqlite3_errmsg(db_con));
+            // get active session username
+            queries[ind++] = sqlite3_mprintf("SELECT user FROM scd_sessions WHERE `ip`=\"%s\"", ip_address);
+#ifdef DEBUG
+            syslog(LOG_DEBUG, "Active session lookup [%s]", queries[ind - 1]);
+#endif
+            retval = sqlite3_prepare_v2(db_con,queries[ind - 1], -1, &db_stmt, 0);
+            if(retval) syslog(LOG_WARNING, "sqlite3: %s", sqlite3_errmsg(db_con));
 
-            free((char*)username);
+            retval = sqlite3_step(db_stmt);
+
+            if(retval == SQLITE_ROW)
+            {
+                const char *username = (const char*)sqlite3_column_text(db_stmt, 0);
+#ifdef DEBUG
+                syslog(LOG_DEBUG, "Response: OK user=%s", username);
+#endif
+                printf("OK user=%s\n", username);
+                fflush(stdout);
+
+                queries[ind++] = sqlite3_mprintf("UPDATE scd_sessions SET `last_visit`=%ld WHERE `ip`=\"%s\"", time(NULL), ip_address);
+#ifdef DEBUG
+                syslog(LOG_DEBUG, "Active session update [%s]", queries[ind - 1]);
+#endif
+                retval = sqlite3_exec(db_con, queries[ind - 1], 0, 0, 0);
+                if(retval) syslog(LOG_WARNING, "sqlite3: %s\n", sqlite3_errmsg(db_con));
+
+                free((char*)username);
+            }
+            else
+            {
+#ifdef DEBUG
+                syslog(LOG_DEBUG, "Response: ERR");
+#endif
+                printf("ERR\n");
+                fflush(stdout);
+            }
         }
         else
         {
-#ifdef DEBUG
-            syslog(LOG_DEBUG, "Response: ERR");
-#endif
-            printf("ERR\n");
-            fflush(stdout);
+            syslog(LOG_NOTICE, "Invalid IP address supplied (%s)", ip_address);
+
+            if(++faild >= IPFAIL)
+            {
+                syslog(LOG_DEBUG, "Enough! You failed %d times, shutting down", IPFAIL);
+                clean_shutdown();
+                return EXIT_FAILURE;
+            }
         }
 
         ind = 0;
