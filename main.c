@@ -137,8 +137,7 @@ int main()
     }
 
     char *create_table = "CREATE TABLE IF NOT EXISTS scd_sessions "
-                         "(sid INTEGER PRIMARY KEY, "
-                         "ip TEXT NOT NULL, "
+                         "(ip TEXT PRIMARY KEY, "
                          "user TEXT NOT NULL, "
                          "last_visit INTEGER NOT NULL)";
 
