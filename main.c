@@ -42,7 +42,6 @@ int busy_handler(void *pArg1, int iPriorCalls)
 {
     syslog(LOG_DEBUG, "busy_handler() %d", iPriorCalls);
 
-    /*
     // sleep if handler has been called less than threshold value
     if (iPriorCalls < 20)
     {
@@ -52,9 +51,6 @@ int busy_handler(void *pArg1, int iPriorCalls)
         else usleep(500000);
         return 1;
     }
-    */
-    clean_shutdown();
-    exit(0);
 
     // have sqlite3_exec immediately return SQLITE_BUSY
     return 0;
